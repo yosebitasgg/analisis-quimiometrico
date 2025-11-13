@@ -988,15 +988,19 @@ elif page == "Resultados":
             st.markdown(f"#### {graph_name}")
             st.plotly_chart(fig, use_container_width=True)
 
-            # Botón de descarga para cada gráfica
-            img_bytes = fig.to_image(format="png", width=1200, height=800, scale=2)
-            st.download_button(
-                label=f"Descargar {graph_name}",
-                data=img_bytes,
-                file_name=f"{graph_name.lower().replace(' ', '_')}.png",
-                mime="image/png",
-                key=f"download_{graph_name}"
-            )
+            # Botón de descarga para cada gráfica (solo si kaleido está disponible)
+            try:
+                img_bytes = fig.to_image(format="png", width=1200, height=800, scale=2)
+                st.download_button(
+                    label=f"Descargar {graph_name}",
+                    data=img_bytes,
+                    file_name=f"{graph_name.lower().replace(' ', '_')}.png",
+                    mime="image/png",
+                    key=f"download_{graph_name}"
+                )
+            except Exception as e:
+                st.info("💡 Descarga de imágenes no disponible. Usa el menú de Plotly (⋮) para exportar manualmente.")
+
             st.markdown("---")
     else:
         create_info_box("No hay gráficas generadas todavía.", "warning")
