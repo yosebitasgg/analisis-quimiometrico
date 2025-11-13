@@ -19,6 +19,7 @@ kaleido>=0.2.1
 
 # Lectura de archivos Excel
 openpyxl>=3.1.0
+xlrd>=2.0.1
 
 # Testing (opcional, para desarrollo)
 pytest>=7.4.0
