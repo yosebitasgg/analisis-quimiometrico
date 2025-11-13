@@ -1,0 +1,23 @@
+# Configuración de Streamlit para la aplicación de Quimiometría
+
+[theme]
+primaryColor = "#0066CC"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F9FAFB"
+textColor = "#1F2937"
+font = "sans serif"
+
+[server]
+# Aumentar tamaño máximo de archivos (200 MB)
+maxUploadSize = 200
+# Habilitar CORS para desarrollo local
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+# Recopilar métricas de uso (desactivar en producción si prefieres)
+gatherUsageStats = false
+
+[runner]
+# Volver a ejecutar al cambiar archivos (útil en desarrollo)
+magicEnabled = true
