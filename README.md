@@ -447,9 +447,6 @@ Este proyecto es desarrollado con fines académicos para el curso de **Métodos 
 
 ---
 
-<p align="center">
-  <sub>Desarrollado con Claude Code - Diciembre 2024</sub>
-</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.0-blue?style=flat-square" alt="Version"/>
