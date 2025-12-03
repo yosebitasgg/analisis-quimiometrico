@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos base personalizados */
+body {
+  @apply bg-gray-50 text-secondary-800 font-sans;
+}
+
+/* Clase para cards */
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 p-5;
+}
+
+/* Clase para inputs */
+.input {
+  @apply w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+}
+
+/* Clase para botón primario */
+.btn-primary {
+  @apply px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Clase para botón secundario */
+.btn-secondary {
+  @apply px-4 py-2 bg-gray-100 text-secondary-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Clase para botón outline */
+.btn-outline {
+  @apply px-4 py-2 border border-primary-600 text-primary-600 rounded-lg hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Clase para select */
+.select {
+  @apply w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white transition-all;
+}
+
+/* Clase para label */
+.label {
+  @apply block text-sm font-medium text-secondary-700 mb-1;
+}
+
+/* Tooltip personalizado */
+.tooltip {
+  @apply relative inline-block;
+}
+
+.tooltip-text {
+  @apply invisible absolute z-10 px-3 py-2 text-sm text-white bg-secondary-800 rounded-lg -top-10 left-1/2 transform -translate-x-1/2 whitespace-nowrap opacity-0 transition-opacity;
+}
+
+.tooltip:hover .tooltip-text {
+  @apply visible opacity-100;
+}
+
+/* Scroll personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded hover:bg-gray-400;
+}
+
+/* Animación de carga */
+.loading-spinner {
+  @apply animate-spin rounded-full h-5 w-5 border-2 border-primary-600 border-t-transparent;
+}
