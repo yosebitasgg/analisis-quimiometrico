@@ -9,6 +9,7 @@ from io import BytesIO
 from datetime import datetime
 
 from app.services.store import store
+from app.services import pca_service
 
 
 # Mapeos de etiquetas
@@ -124,6 +125,44 @@ def generar_interpretacion_clustering(session) -> Optional[str]:
             interpretacion.append(
                 f"Grupo {cluster_id + 1} está dominado por {fs_nombre} ({pct:.0f}%). "
             )
+
+    return "".join(interpretacion)
+
+
+def generar_interpretacion_diagnosticos(session_id: str) -> Optional[str]:
+    """Genera interpretación textual de los diagnósticos PCA"""
+    try:
+        diagnosticos = pca_service.calcular_diagnosticos_pca(session_id)
+    except Exception:
+        return None
+
+    n_muestras = diagnosticos["n_muestras"]
+    n_outliers_t2 = diagnosticos["estadisticas"]["n_outliers_t2"]
+    n_outliers_q = diagnosticos["estadisticas"]["n_outliers_q"]
+    n_outliers_comb = diagnosticos["estadisticas"]["n_outliers_combinados"]
+
+    pct_t2 = (n_outliers_t2 / n_muestras) * 100
+    pct_q = (n_outliers_q / n_muestras) * 100
+    pct_comb = (n_outliers_comb / n_muestras) * 100
+
+    interpretacion = []
+    interpretacion.append(
+        f"El análisis de diagnósticos identificó {n_outliers_t2} muestras ({pct_t2:.1f}%) "
+        f"con valores anómalos de T² (Hotelling) y {n_outliers_q} muestras ({pct_q:.1f}%) "
+        f"con altos residuales Q."
+    )
+
+    if n_outliers_comb > 0:
+        interpretacion.append(
+            f" De estas, {n_outliers_comb} muestras ({pct_comb:.1f}%) exceden ambos límites "
+            f"simultáneamente, lo que indica posibles muestras problemáticas o especiales "
+            f"que merecen revisión manual."
+        )
+    else:
+        interpretacion.append(
+            " No se encontraron muestras que excedan ambos límites simultáneamente, "
+            "lo cual sugiere buena calidad general del modelo PCA."
+        )
 
     return "".join(interpretacion)
 
@@ -285,6 +324,64 @@ def generar_resumen(session_id: str) -> Dict[str, Any]:
             "mejores_variables": clf.feature_names[:3] if clf.feature_names else []
         })
 
+    # Resumen de diagnósticos PCA
+    diagnosticos_resumen = None
+    if session.pca_scores is not None:
+        try:
+            diagnosticos = pca_service.calcular_diagnosticos_pca(session_id)
+            n_muestras = diagnosticos["n_muestras"]
+            diagnosticos_resumen = {
+                "n_outliers_t2": diagnosticos["estadisticas"]["n_outliers_t2"],
+                "n_outliers_q": diagnosticos["estadisticas"]["n_outliers_q"],
+                "n_outliers_combinados": diagnosticos["estadisticas"]["n_outliers_combinados"],
+                "t2_limit_95": diagnosticos["t2_limit_95"],
+                "q_limit_95": diagnosticos["q_limit_95"],
+                "t2_media": diagnosticos["estadisticas"]["t2_media"],
+                "q_media": diagnosticos["estadisticas"]["q_media"],
+                "porcentaje_outliers": (diagnosticos["estadisticas"]["n_outliers_combinados"] / n_muestras) * 100
+            }
+        except Exception:
+            pass
+
+    # Resumen de auto-optimización
+    optimizacion_resumen = None
+    if session.X_procesado is not None:
+        try:
+            optimizacion = pca_service.calcular_optimizacion_pcs(session_id)
+            optimizacion_resumen = {
+                "componentes_recomendados": optimizacion["componentes_recomendados"],
+                "varianza_recomendada": optimizacion["varianza_recomendada"],
+                "motivo_recomendacion": optimizacion["motivo_recomendacion"],
+                "k_por_varianza": optimizacion["criterios"]["k_por_varianza"],
+                "k_por_codo": optimizacion["criterios"]["k_por_codo"],
+                "k_por_significancia": optimizacion["criterios"]["k_por_significancia"]
+            }
+        except Exception:
+            pass
+
+    # Resumen de visualización
+    visualizacion_resumen = None
+    if session.pca_scores is not None:
+        n_componentes = session.pca_scores.shape[1]
+        tiene_3d = n_componentes >= 3
+        varianza_3d = None
+        if tiene_3d and session.pca_varianza is not None:
+            varianza_3d = float(sum(session.pca_varianza[:3]) * 100)
+
+        metodos_disponibles = ["PCA"]
+        try:
+            import umap
+            metodos_disponibles.append("UMAP")
+        except ImportError:
+            pass
+        metodos_disponibles.append("t-SNE")
+
+        visualizacion_resumen = {
+            "tiene_3d": tiene_3d,
+            "varianza_3d": varianza_3d,
+            "metodos_disponibles": metodos_disponibles
+        }
+
     # Interpretaciones
     interpretacion_general = (
         f"Este análisis quimiométrico procesó {info_dataset['n_muestras']} muestras "
@@ -308,13 +405,29 @@ def generar_resumen(session_id: str) -> Dict[str, Any]:
             f"Se entrenaron {len(classifier_resumen)} clasificadores supervisados para predicción. "
         )
 
+    if diagnosticos_resumen:
+        interpretacion_general += (
+            f"Los diagnósticos identificaron {diagnosticos_resumen['n_outliers_combinados']} "
+            f"posibles outliers ({diagnosticos_resumen['porcentaje_outliers']:.1f}%). "
+        )
+
+    if optimizacion_resumen:
+        interpretacion_general += (
+            f"El análisis recomienda usar {optimizacion_resumen['componentes_recomendados']} "
+            f"componentes principales ({optimizacion_resumen['varianza_recomendada']:.1f}% varianza). "
+        )
+
     return {
         "info_dataset": info_dataset,
         "pca_resumen": pca_resumen,
+        "diagnosticos_resumen": diagnosticos_resumen,
+        "optimizacion_resumen": optimizacion_resumen,
+        "visualizacion_resumen": visualizacion_resumen,
         "clustering_resumen": clustering_resumen,
         "classifier_resumen": classifier_resumen if classifier_resumen else None,
         "interpretacion_general": interpretacion_general,
         "interpretacion_pca": generar_interpretacion_pca(session),
+        "interpretacion_diagnosticos": generar_interpretacion_diagnosticos(session_id),
         "interpretacion_clustering": generar_interpretacion_clustering(session),
         "interpretacion_clasificador": generar_interpretacion_clasificador(session)
     }
@@ -451,10 +564,85 @@ def generar_pdf(session_id: str) -> bytes:
             elementos.append(Spacer(1, 10))
             elementos.append(Paragraph(_preparar_texto_pdf(resumen["interpretacion_pca"]), normal_style))
 
+    # Diagnósticos PCA
+    section_num = 3
+    if resumen.get("diagnosticos_resumen"):
+        elementos.append(Paragraph(f"{section_num}. Diagnósticos PCA (Hotelling T² y Q-residuales)", subtitulo_style))
+        diag = resumen["diagnosticos_resumen"]
+
+        tabla_diag = [
+            ["Métrica", "Media", "Límite 95%", "Outliers"],
+            ["Hotelling T²", f"{diag['t2_media']:.2f}", f"{diag['t2_limit_95']:.2f}", str(diag['n_outliers_t2'])],
+            ["Q-residuales", f"{diag['q_media']:.4f}", f"{diag['q_limit_95']:.4f}", str(diag['n_outliers_q'])],
+        ]
+        t = Table(tabla_diag, colWidths=[4*cm, 3*cm, 3*cm, 3*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dc2626')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('PADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elementos.append(t)
+
+        elementos.append(Spacer(1, 5))
+        elementos.append(Paragraph(
+            f"Outliers combinados (T² y Q): {diag['n_outliers_combinados']} muestras ({diag['porcentaje_outliers']:.1f}%)",
+            normal_style
+        ))
+
+        if resumen.get("interpretacion_diagnosticos"):
+            elementos.append(Spacer(1, 5))
+            elementos.append(Paragraph(_preparar_texto_pdf(resumen["interpretacion_diagnosticos"]), normal_style))
+
+        section_num += 1
+
+    # Auto-Optimización
+    if resumen.get("optimizacion_resumen"):
+        elementos.append(Paragraph(f"{section_num}. Auto-Optimización de Componentes", subtitulo_style))
+        opt = resumen["optimizacion_resumen"]
+
+        elementos.append(Paragraph(
+            f"Recomendación: <b>{opt['componentes_recomendados']} componentes principales</b> "
+            f"({opt['varianza_recomendada']:.1f}% varianza explicada)",
+            normal_style
+        ))
+        elementos.append(Paragraph(f"Motivo: {opt['motivo_recomendacion']}", normal_style))
+
+        tabla_opt = [
+            ["Criterio", "k Recomendado"],
+            ["Por varianza (90%)", str(opt['k_por_varianza'])],
+            ["Método del codo", str(opt['k_por_codo'])],
+            ["Por significancia", str(opt['k_por_significancia'])],
+        ]
+        t = Table(tabla_opt, colWidths=[7*cm, 4*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#059669')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('PADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elementos.append(t)
+        section_num += 1
+
+    # Visualización Avanzada
+    if resumen.get("visualizacion_resumen"):
+        elementos.append(Paragraph(f"{section_num}. Visualización Avanzada", subtitulo_style))
+        vis = resumen["visualizacion_resumen"]
+
+        vis_texto = f"Métodos de reducción disponibles: {', '.join(vis['metodos_disponibles'])}. "
+        if vis['tiene_3d']:
+            vis_texto += f"Visualización 3D disponible con {vis['varianza_3d']:.1f}% de varianza explicada (PC1+PC2+PC3)."
+        else:
+            vis_texto += "Visualización 3D no disponible (se requieren al menos 3 componentes)."
+
+        elementos.append(Paragraph(vis_texto, normal_style))
+        section_num += 1
+
     # Clustering
     if resumen["clustering_resumen"]:
-        elementos.append(Paragraph("3. Análisis de Clustering", subtitulo_style))
+        elementos.append(Paragraph(f"{section_num}. Análisis de Clustering", subtitulo_style))
         clust = resumen["clustering_resumen"]
+        section_num += 1
         elementos.append(Paragraph(
             f"Método: {clust['metodo'].upper()} | Clusters: {clust['n_clusters']}",
             normal_style
@@ -483,7 +671,8 @@ def generar_pdf(session_id: str) -> bytes:
 
     # Clasificadores
     if resumen["classifier_resumen"]:
-        elementos.append(Paragraph("4. Clasificadores Supervisados", subtitulo_style))
+        elementos.append(Paragraph(f"{section_num}. Clasificadores Supervisados", subtitulo_style))
+        section_num += 1
 
         tabla_clf = [["Target", "Modelo", "Accuracy", "F1-Score"]]
         for clf in resumen["classifier_resumen"]:
@@ -507,7 +696,7 @@ def generar_pdf(session_id: str) -> bytes:
             elementos.append(Paragraph(_preparar_texto_pdf(resumen["interpretacion_clasificador"]), normal_style))
 
     # Conclusiones
-    elementos.append(Paragraph("5. Resumen e Interpretacion General", subtitulo_style))
+    elementos.append(Paragraph(f"{section_num}. Resumen e Interpretacion General", subtitulo_style))
     elementos.append(Paragraph(_preparar_texto_pdf(resumen["interpretacion_general"]), normal_style))
 
     # Pie de página

@@ -418,6 +418,32 @@ export interface ClassifierResumen {
   mejores_variables: string[];
 }
 
+export interface DiagnosticosResumen {
+  n_outliers_t2: number;
+  n_outliers_q: number;
+  n_outliers_combinados: number;
+  t2_limit_95: number;
+  q_limit_95: number;
+  t2_media: number;
+  q_media: number;
+  porcentaje_outliers: number;
+}
+
+export interface OptimizacionResumen {
+  componentes_recomendados: number;
+  varianza_recomendada: number;
+  motivo_recomendacion: string;
+  k_por_varianza: number;
+  k_por_codo: number;
+  k_por_significancia: number;
+}
+
+export interface VisualizacionResumen {
+  tiene_3d: boolean;
+  varianza_3d: number | null;
+  metodos_disponibles: string[];
+}
+
 export interface ReportSummaryResponse {
   exito: boolean;
   mensaje: string;
@@ -430,10 +456,14 @@ export interface ReportSummaryResponse {
     tiene_concentration: boolean;
   };
   pca_resumen: PCAResumen | null;
+  diagnosticos_resumen: DiagnosticosResumen | null;
+  optimizacion_resumen: OptimizacionResumen | null;
+  visualizacion_resumen: VisualizacionResumen | null;
   clustering_resumen: ClusteringResumen | null;
   classifier_resumen: ClassifierResumen[] | null;
   interpretacion_general: string;
   interpretacion_pca: string | null;
+  interpretacion_diagnosticos: string | null;
   interpretacion_clustering: string | null;
   interpretacion_clasificador: string | null;
 }

@@ -284,16 +284,49 @@ class ClassifierResumen(BaseModel):
     mejores_variables: List[str]
 
 
+class DiagnosticosResumen(BaseModel):
+    """Resumen de diagnósticos PCA para reporte"""
+    n_outliers_t2: int
+    n_outliers_q: int
+    n_outliers_combinados: int
+    t2_limit_95: float
+    q_limit_95: float
+    t2_media: float
+    q_media: float
+    porcentaje_outliers: float
+
+
+class OptimizacionResumen(BaseModel):
+    """Resumen de auto-optimización para reporte"""
+    componentes_recomendados: int
+    varianza_recomendada: float
+    motivo_recomendacion: str
+    k_por_varianza: int
+    k_por_codo: int
+    k_por_significancia: int
+
+
+class VisualizacionResumen(BaseModel):
+    """Resumen de visualizaciones avanzadas para reporte"""
+    tiene_3d: bool
+    varianza_3d: Optional[float] = None
+    metodos_disponibles: List[str]
+
+
 class ReportSummaryResponse(BaseModel):
     """Respuesta del resumen de reporte"""
     exito: bool
     mensaje: str
     info_dataset: Dict[str, Any]
     pca_resumen: Optional[PCAResumen] = None
+    diagnosticos_resumen: Optional[DiagnosticosResumen] = None
+    optimizacion_resumen: Optional[OptimizacionResumen] = None
+    visualizacion_resumen: Optional[VisualizacionResumen] = None
     clustering_resumen: Optional[ClusteringResumen] = None
     classifier_resumen: Optional[List[ClassifierResumen]] = None
     interpretacion_general: str
     interpretacion_pca: Optional[str] = None
+    interpretacion_diagnosticos: Optional[str] = None
     interpretacion_clustering: Optional[str] = None
     interpretacion_clasificador: Optional[str] = None
 

@@ -32,10 +32,14 @@ async def obtener_resumen(session_id: str):
             mensaje="Resumen generado exitosamente",
             info_dataset=resumen["info_dataset"],
             pca_resumen=resumen["pca_resumen"],
+            diagnosticos_resumen=resumen["diagnosticos_resumen"],
+            optimizacion_resumen=resumen["optimizacion_resumen"],
+            visualizacion_resumen=resumen["visualizacion_resumen"],
             clustering_resumen=resumen["clustering_resumen"],
             classifier_resumen=resumen["classifier_resumen"],
             interpretacion_general=resumen["interpretacion_general"],
             interpretacion_pca=resumen["interpretacion_pca"],
+            interpretacion_diagnosticos=resumen["interpretacion_diagnosticos"],
             interpretacion_clustering=resumen["interpretacion_clustering"],
             interpretacion_clasificador=resumen["interpretacion_clasificador"]
         )
