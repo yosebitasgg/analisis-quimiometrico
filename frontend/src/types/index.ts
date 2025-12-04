@@ -467,3 +467,189 @@ export interface TeachingContextType {
   setAppState?: (state: AppState) => void;
   syncWithAppState: (state: AppState) => void;
 }
+
+// ============================================================================
+// TIPOS DE DIAGNÓSTICOS PCA (T², Q-residuals)
+// ============================================================================
+
+export interface PCADiagnosticsStats {
+  t2_media: number;
+  t2_mediana: number;
+  t2_max: number;
+  t2_min: number;
+  q_media: number;
+  q_mediana: number;
+  q_max: number;
+  q_min: number;
+  n_outliers_t2: number;
+  n_outliers_q: number;
+  n_outliers_combinados: number;
+}
+
+export interface PCADiagnosticsResponse {
+  exito: boolean;
+  mensaje: string;
+  t2_values: number[];
+  q_values: number[];
+  t2_limit_95: number;
+  t2_limit_99: number;
+  q_limit_95: number;
+  q_limit_99: number;
+  outliers_t2_95: number[];
+  outliers_t2_99: number[];
+  outliers_q_95: number[];
+  outliers_q_99: number[];
+  outliers_combinados: number[];
+  estadisticas: PCADiagnosticsStats;
+  n_muestras: number;
+  n_componentes: number;
+  nombres_muestras: number[];
+  feedstock: number[] | null;
+  concentration: number[] | null;
+}
+
+export interface PCAContributionsRequest {
+  session_id: string;
+  sample_index: number;
+  tipo_metrica: 'T2' | 'Q';
+}
+
+export interface VariableContribution {
+  variable: string;
+  contribucion_valor: number;
+  contribucion_porcentaje: number;
+}
+
+export interface ContributionSampleInfo {
+  indice: number;
+  feedstock: number | null;
+  concentration: number | null;
+}
+
+export interface PCAContributionsResponse {
+  exito: boolean;
+  mensaje: string;
+  muestra: ContributionSampleInfo;
+  tipo_metrica: string;
+  contribuciones: VariableContribution[];
+  top_5_variables: string[];
+  interpretacion: string;
+}
+
+// ============================================================================
+// TIPOS DE AUTO-OPTIMIZACIÓN DE PCs
+// ============================================================================
+
+export interface PCOptimizationResult {
+  k: number;
+  varianza_individual: number;
+  varianza_acumulada: number;
+  error_reconstruccion: number;
+  error_normalizado: number;
+}
+
+export interface OptimizationCriteria {
+  k_por_varianza: number;
+  k_por_codo: number;
+  k_por_significancia: number;
+  umbral_varianza_usado: number;
+}
+
+export interface PCAOptimizationResponse {
+  exito: boolean;
+  mensaje: string;
+  resultados: PCOptimizationResult[];
+  k_max_evaluado: number;
+  componentes_recomendados: number;
+  varianza_recomendada: number;
+  motivo_recomendacion: string;
+  criterios: OptimizationCriteria;
+  interpretacion: string;
+}
+
+// ============================================================================
+// TIPOS DE VISUALIZACIÓN 3D
+// ============================================================================
+
+export interface Point3D {
+  id: number;
+  PC1: number;
+  PC2: number;
+  PC3: number;
+  feedstock: number | null;
+  concentration: number | null;
+  cluster: number | null;
+  T2: number | null;
+  Q: number | null;
+}
+
+export interface Loading3D {
+  variable: string;
+  PC1: number;
+  PC2: number;
+  PC3: number;
+}
+
+export interface Variance3D {
+  PC1: number;
+  PC2: number;
+  PC3: number;
+  total_3d: number;
+}
+
+export interface PCA3DResponse {
+  exito: boolean;
+  mensaje: string;
+  puntos: Point3D[];
+  loadings: Loading3D[] | null;
+  varianza: Variance3D | null;
+  n_muestras: number;
+  tiene_clusters: boolean;
+  tiene_diagnosticos: boolean;
+}
+
+// ============================================================================
+// TIPOS DE MAPA QUÍMICO 2.0
+// ============================================================================
+
+export interface ChemicalMapRequest {
+  session_id: string;
+  metodo: 'pca' | 'umap' | 'tsne';
+  n_neighbors?: number;
+  min_dist?: number;
+}
+
+export interface ChemicalMapPoint {
+  id: number;
+  x: number;
+  y: number;
+  feedstock: number | null;
+  concentration: number | null;
+  cluster: number | null;
+  T2: number | null;
+  Q: number | null;
+  es_outlier: boolean;
+}
+
+export interface ChemicalMapVariance {
+  dim1: number | null;
+  dim2: number | null;
+}
+
+export interface MapAxes {
+  x: string;
+  y: string;
+}
+
+export interface ChemicalMapResponse {
+  exito: boolean;
+  mensaje: string;
+  metodo: string;
+  puntos: ChemicalMapPoint[];
+  varianza: ChemicalMapVariance | null;
+  n_muestras: number;
+  tiene_clusters: boolean;
+  tiene_diagnosticos: boolean;
+  outliers: number[];
+  ejes: MapAxes;
+}

@@ -1,10 +1,13 @@
-import { HelpCircle, BookOpen, BarChart3, Layers, TrendingUp, Lightbulb, Database, Users } from 'lucide-react';
+import { HelpCircle, BookOpen, BarChart3, Layers, TrendingUp, Lightbulb, Database, Users, AlertTriangle, Eye, Bot } from 'lucide-react';
 
 export default function HelpPage() {
   const sections = [
     { id: 'intro', label: 'Introducción', icon: HelpCircle },
     { id: 'pca', label: 'Análisis PCA', icon: TrendingUp },
+    { id: 'diagnostico', label: 'Diagnóstico PCA', icon: AlertTriangle },
+    { id: 'visualizacion', label: 'Visualización', icon: Eye },
     { id: 'clustering', label: 'Clustering', icon: Layers },
+    { id: 'asistente', label: 'Asistente Virtual', icon: Bot },
     { id: 'flujo', label: 'Flujo de Trabajo', icon: BookOpen },
     { id: 'dataset', label: 'Dataset de Ejemplo', icon: Database },
     { id: 'autores', label: 'Autores', icon: Users },
@@ -134,6 +137,83 @@ export default function HelpPage() {
           </div>
         </div>
 
+        {/* Diagnóstico PCA */}
+        <div id="diagnostico" className="card scroll-mt-6 !p-0 overflow-hidden">
+          <h2 className="text-lg font-semibold text-secondary-800 flex items-center gap-2 bg-secondary-50 px-5 py-4 border-b border-secondary-100">
+            <AlertTriangle className="w-5 h-5 text-primary-600" />
+            <span className="text-secondary-300">|</span>
+            Diagnóstico PCA (T² y Q-residuals)
+          </h2>
+          <div className="p-5 space-y-4 text-secondary-600">
+            <p>
+              Herramientas para detectar muestras anómalas y validar la calidad del modelo PCA.
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-red-50 rounded-lg p-4 border border-red-100">
+                <h4 className="font-medium text-red-800 mb-2">Hotelling T²</h4>
+                <p className="text-sm text-red-700">
+                  Mide qué tan lejos está cada muestra del centro del modelo. Un T² alto indica
+                  valores extremos en las direcciones capturadas por los componentes.
+                </p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
+                <h4 className="font-medium text-orange-800 mb-2">Q-Residual (SPE)</h4>
+                <p className="text-sm text-orange-700">
+                  Mide el error de reconstrucción. Un Q alto indica que la muestra tiene
+                  variación que el modelo no captura.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="font-medium text-secondary-700 mb-2">Interpretación del gráfico T² vs Q</h4>
+              <ul className="text-sm space-y-1">
+                <li><strong>T² bajo, Q bajo:</strong> Muestra normal, bien representada</li>
+                <li><strong>T² alto, Q bajo:</strong> Valores extremos pero dentro del patrón</li>
+                <li><strong>T² bajo, Q alto:</strong> Comportamiento diferente no capturado</li>
+                <li><strong>T² alto, Q alto:</strong> Outlier severo - investigar</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Visualización */}
+        <div id="visualizacion" className="card scroll-mt-6 !p-0 overflow-hidden">
+          <h2 className="text-lg font-semibold text-secondary-800 flex items-center gap-2 bg-secondary-50 px-5 py-4 border-b border-secondary-100">
+            <Eye className="w-5 h-5 text-primary-600" />
+            <span className="text-secondary-300">|</span>
+            Visualización Avanzada
+          </h2>
+          <div className="p-5 space-y-4 text-secondary-600">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+                <h4 className="font-medium text-purple-800 mb-2">Vista 3D</h4>
+                <p className="text-sm text-purple-700">
+                  Proyección interactiva PC1-PC2-PC3. Rota, haz zoom y explora el espacio
+                  tridimensional de tus datos.
+                </p>
+              </div>
+              <div className="bg-teal-50 rounded-lg p-4 border border-teal-100">
+                <h4 className="font-medium text-teal-800 mb-2">Mapa Químico</h4>
+                <p className="text-sm text-teal-700">
+                  Proyección 2D con PCA, t-SNE o UMAP. Visualiza clusters y outliers
+                  en el "espacio químico".
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+              <h4 className="font-medium text-blue-800 mb-2">Métodos de proyección</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li><strong>PCA:</strong> Lineal, preserva varianza global, interpretable</li>
+                <li><strong>t-SNE:</strong> No lineal, revela clusters locales</li>
+                <li><strong>UMAP:</strong> Balance entre estructura global y local</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         {/* Clustering */}
         <div id="clustering" className="card scroll-mt-6 !p-0 overflow-hidden" data-teaching-id="help-clustering">
           <h2 className="text-lg font-semibold text-secondary-800 flex items-center gap-2 bg-secondary-50 px-5 py-4 border-b border-secondary-100">
@@ -193,6 +273,50 @@ export default function HelpPage() {
               </p>
             </div>
           </div>
+          </div>
+        </div>
+
+        {/* Asistente Virtual */}
+        <div id="asistente" className="card scroll-mt-6 !p-0 overflow-hidden">
+          <h2 className="text-lg font-semibold text-secondary-800 flex items-center gap-2 bg-secondary-50 px-5 py-4 border-b border-secondary-100">
+            <Bot className="w-5 h-5 text-primary-600" />
+            <span className="text-secondary-300">|</span>
+            Asistente Quimiométrico Virtual
+          </h2>
+          <div className="p-5 space-y-4 text-secondary-600">
+            <p>
+              Un chatbot integrado que te ayuda a interpretar tus análisis quimiométricos
+              usando inteligencia artificial (Google Gemini).
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+                <h4 className="font-medium text-green-800 mb-2">Modo IA</h4>
+                <p className="text-sm text-green-700">
+                  Con API key configurada. Respuestas inteligentes y personalizadas
+                  basadas en tus datos y resultados de análisis.
+                </p>
+              </div>
+              <div className="bg-amber-50 rounded-lg p-4 border border-amber-100">
+                <h4 className="font-medium text-amber-800 mb-2">Modo Demo</h4>
+                <p className="text-sm text-amber-700">
+                  Sin API key. Respuestas predefinidas con información general
+                  sobre conceptos de quimiometría.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+              <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
+                <Lightbulb className="w-4 h-4" />
+                Cómo usar
+              </h4>
+              <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                <li>Haz clic en <strong>"Asistente"</strong> en el header</li>
+                <li>Escribe tu pregunta o usa las preguntas sugeridas</li>
+                <li>El asistente tiene acceso al contexto de tu análisis actual</li>
+              </ol>
+            </div>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { TrendingUp, AlertCircle, CheckCircle, Info } from 'lucide-react';
-import { calculatePCA } from '../api/pcaApi';
-import { AppState, PCAResults } from '../types';
+import { useState, useEffect } from 'react';
+import { TrendingUp, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
+import { calculatePCA, getPCAOptimization } from '../api/pcaApi';
+import { AppState, PCAResults, PCAOptimizationResponse } from '../types';
 import CollapsibleCard from './CollapsibleCard';
 
 interface Props {
@@ -16,6 +16,23 @@ export default function PCACard({ appState, setAppState, setPcaResults, pcaResul
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [optimizationData, setOptimizationData] = useState<PCAOptimizationResponse | null>(null);
+  const [recommendedK, setRecommendedK] = useState<number | null>(null);
+
+  // Obtener recomendación automática cuando hay datos preprocesados
+  useEffect(() => {
+    if (appState.preprocessed && appState.sessionId && !appState.pcaCalculated) {
+      getPCAOptimization(appState.sessionId)
+        .then(res => {
+          setOptimizationData(res);
+          if (res.componentes_recomendados) {
+            setRecommendedK(res.componentes_recomendados);
+            setNComponents(res.componentes_recomendados);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [appState.preprocessed, appState.sessionId, appState.pcaCalculated]);
 
   const handleCalculatePCA = async () => {
     if (!appState.sessionId) return;
@@ -86,14 +103,8 @@ export default function PCACard({ appState, setAppState, setPcaResults, pcaResul
       <div className="space-y-4">
         {/* Número de componentes */}
         <div>
-          <label className="label flex items-center gap-1">
+          <label className="label">
             Número de componentes
-            <div className="tooltip">
-              <Info className="w-4 h-4 text-secondary-400 cursor-help" />
-              <span className="tooltip-text">
-                Cantidad de componentes principales a calcular (1-10)
-              </span>
-            </div>
           </label>
           <div className="flex items-center gap-4">
             <input
@@ -108,6 +119,29 @@ export default function PCACard({ appState, setAppState, setPcaResults, pcaResul
               {nComponents}
             </span>
           </div>
+          {/* Recomendación automática de número de PCs */}
+          {recommendedK !== null && optimizationData && (
+            <div className="group relative mt-2">
+              <div className="flex items-center gap-1.5 text-xs text-green-600">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>
+                  {recommendedK} componentes recomendados ({optimizationData.varianza_recomendada.toFixed(0)}% varianza explicada)
+                  {nComponents === recommendedK && ' (seleccionado)'}
+                </span>
+              </div>
+              {/* Tooltip con explicación detallada */}
+              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 w-72 p-3 bg-white border border-gray-200 rounded-lg shadow-lg text-xs text-secondary-600">
+                <p className="font-semibold text-secondary-800 mb-1">¿Por qué {recommendedK} componentes?</p>
+                <p>{optimizationData.motivo_recomendacion}</p>
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <p className="text-secondary-500">
+                    Criterios evaluados: varianza ≥{(optimizationData.criterios.umbral_varianza_usado * 100).toFixed(0)}%,
+                    punto de codo, significancia individual.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Botón calcular */}

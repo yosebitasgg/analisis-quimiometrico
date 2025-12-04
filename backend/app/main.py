@@ -3,10 +3,14 @@ Chemometrics Helper - Backend FastAPI
 Herramienta de análisis multivariado para quimiometría
 """
 
+# Cargar variables de entorno desde .env
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import data, pca, clustering, classifier, similarity, report
+from app.routers import data, pca, clustering, classifier, similarity, report, assistant
 
 app = FastAPI(
     title="Chemometrics Helper API",
@@ -32,6 +36,7 @@ app.include_router(clustering.router, prefix="/api/clustering", tags=["Clusterin
 app.include_router(classifier.router, prefix="/api/classifier", tags=["Clasificador"])
 app.include_router(similarity.router, prefix="/api/similarity", tags=["Similitud"])
 app.include_router(report.router, prefix="/api/report", tags=["Reportes"])
+app.include_router(assistant.router, prefix="/api/assistant", tags=["Asistente"])
 
 
 @app.get("/")
@@ -45,7 +50,8 @@ async def root():
             "clustering": "/api/clustering",
             "clasificador": "/api/classifier",
             "similitud": "/api/similarity",
-            "reportes": "/api/report"
+            "reportes": "/api/report",
+            "asistente": "/api/assistant"
         }
     }
 

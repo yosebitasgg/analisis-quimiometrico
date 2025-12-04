@@ -296,3 +296,207 @@ class ReportSummaryResponse(BaseModel):
     interpretacion_pca: Optional[str] = None
     interpretacion_clustering: Optional[str] = None
     interpretacion_clasificador: Optional[str] = None
+
+
+# ============================================================================
+# SCHEMAS DE DIAGNÓSTICOS PCA (T², Q-residuals)
+# ============================================================================
+
+class PCADiagnosticsStats(BaseModel):
+    """Estadísticas de diagnósticos PCA"""
+    t2_media: float
+    t2_mediana: float
+    t2_max: float
+    t2_min: float
+    q_media: float
+    q_mediana: float
+    q_max: float
+    q_min: float
+    n_outliers_t2: int
+    n_outliers_q: int
+    n_outliers_combinados: int
+
+
+class PCADiagnosticsResponse(BaseModel):
+    """Respuesta de diagnósticos PCA"""
+    exito: bool
+    mensaje: str
+    t2_values: List[float]
+    q_values: List[float]
+    t2_limit_95: float
+    t2_limit_99: float
+    q_limit_95: float
+    q_limit_99: float
+    outliers_t2_95: List[int]
+    outliers_t2_99: List[int]
+    outliers_q_95: List[int]
+    outliers_q_99: List[int]
+    outliers_combinados: List[int]
+    estadisticas: PCADiagnosticsStats
+    n_muestras: int
+    n_componentes: int
+    nombres_muestras: List[int]
+    feedstock: Optional[List[int]] = None
+    concentration: Optional[List[int]] = None
+
+
+class PCAContributionsRequest(BaseModel):
+    """Request para contribuciones por variable"""
+    session_id: str
+    sample_index: int = Field(ge=0, description="Índice de la muestra a analizar")
+    tipo_metrica: str = Field(default="T2", description="'T2' o 'Q'")
+
+
+class VariableContribution(BaseModel):
+    """Contribución de una variable"""
+    variable: str
+    contribucion_valor: float
+    contribucion_porcentaje: float
+
+
+class SampleInfo(BaseModel):
+    """Información básica de una muestra"""
+    indice: int
+    feedstock: Optional[int] = None
+    concentration: Optional[int] = None
+
+
+class PCAContributionsResponse(BaseModel):
+    """Respuesta de contribuciones por variable"""
+    exito: bool
+    mensaje: str
+    muestra: SampleInfo
+    tipo_metrica: str
+    contribuciones: List[VariableContribution]
+    top_5_variables: List[str]
+    interpretacion: str
+
+
+# ============================================================================
+# SCHEMAS DE AUTO-OPTIMIZACIÓN DE PCs
+# ============================================================================
+
+class PCOptimizationResult(BaseModel):
+    """Resultado de optimización para un número de PCs"""
+    k: int
+    varianza_individual: float
+    varianza_acumulada: float
+    error_reconstruccion: float
+    error_normalizado: float
+
+
+class OptimizationCriteria(BaseModel):
+    """Criterios usados para la optimización"""
+    k_por_varianza: int
+    k_por_codo: int
+    k_por_significancia: int
+    umbral_varianza_usado: float
+
+
+class PCAOptimizationResponse(BaseModel):
+    """Respuesta de auto-optimización de PCs"""
+    exito: bool
+    mensaje: str
+    resultados: List[PCOptimizationResult]
+    k_max_evaluado: int
+    componentes_recomendados: int
+    varianza_recomendada: float
+    motivo_recomendacion: str
+    criterios: OptimizationCriteria
+    interpretacion: str
+
+
+# ============================================================================
+# SCHEMAS DE VISUALIZACIÓN 3D
+# ============================================================================
+
+class Point3D(BaseModel):
+    """Punto en espacio 3D"""
+    id: int
+    PC1: float
+    PC2: float
+    PC3: float
+    feedstock: Optional[int] = None
+    concentration: Optional[int] = None
+    cluster: Optional[int] = None
+    T2: Optional[float] = None
+    Q: Optional[float] = None
+
+
+class Loading3D(BaseModel):
+    """Loading para biplot 3D"""
+    variable: str
+    PC1: float
+    PC2: float
+    PC3: float
+
+
+class Variance3D(BaseModel):
+    """Varianza explicada en 3D"""
+    PC1: float
+    PC2: float
+    PC3: float
+    total_3d: float
+
+
+class PCA3DResponse(BaseModel):
+    """Respuesta de proyección 3D"""
+    exito: bool
+    mensaje: str
+    puntos: List[Point3D]
+    loadings: Optional[List[Loading3D]] = None
+    varianza: Optional[Variance3D] = None
+    n_muestras: int
+    tiene_clusters: bool
+    tiene_diagnosticos: bool
+
+
+# ============================================================================
+# SCHEMAS DE MAPA QUÍMICO 2.0
+# ============================================================================
+
+class ChemicalMapRequest(BaseModel):
+    """Request para mapa químico"""
+    session_id: str
+    metodo: str = Field(default="pca", description="'pca', 'umap' o 'tsne'")
+    n_neighbors: int = Field(default=15, ge=2, le=100, description="Vecinos para UMAP")
+    min_dist: float = Field(default=0.1, ge=0.0, le=1.0, description="Distancia mínima UMAP")
+
+
+class ChemicalMapPoint(BaseModel):
+    """Punto en mapa químico"""
+    id: int
+    x: float
+    y: float
+    feedstock: Optional[int] = None
+    concentration: Optional[int] = None
+    cluster: Optional[int] = None
+    T2: Optional[float] = None
+    Q: Optional[float] = None
+    es_outlier: bool = False
+
+
+class MapAxes(BaseModel):
+    """Nombres de ejes del mapa"""
+    x: str
+    y: str
+
+
+class ChemicalMapVariance(BaseModel):
+    """Varianza explicada (solo para PCA)"""
+    dim1: Optional[float] = None
+    dim2: Optional[float] = None
+
+
+class ChemicalMapResponse(BaseModel):
+    """Respuesta de mapa químico"""
+    exito: bool
+    mensaje: str
+    metodo: str
+    puntos: List[ChemicalMapPoint]
+    varianza: Optional[ChemicalMapVariance] = None
+    n_muestras: int
+    tiene_clusters: bool
+    tiene_diagnosticos: bool
+    outliers: List[int]
+    ejes: MapAxes

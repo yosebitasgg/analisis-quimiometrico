@@ -3,11 +3,12 @@ import {
   Download,
   Settings2,
   BarChart3,
-  Table2,
-  Grid3X3,
-  GitBranch,
   BookOpen,
-  Lightbulb
+  Lightbulb,
+  AlertTriangle,
+  Layers,
+  Eye,
+  Database
 } from 'lucide-react';
 import {
   ScreePlot,
@@ -16,10 +17,22 @@ import {
   Heatmap,
   DendrogramPlot,
   SilhouetteByK,
-  SilhouetteBars
+  SilhouetteBars,
+  DiagnosticsScatter,
+  ContributionsBar,
+  OptimizationChart,
+  PCA3DScatter,
+  ChemicalMap
 } from './Charts';
 import { downloadResults, downloadLoadings, getCorrelation } from '../api/dataApi';
 import { getSilhouetteAnalysis, getSilhouetteSamples } from '../api/clusteringApi';
+import {
+  getPCADiagnostics,
+  getPCAContributions,
+  getPCAOptimization,
+  getPCA3D,
+  getChemicalMap
+} from '../api/pcaApi';
 import {
   AppState,
   PCAResults,
@@ -28,7 +41,12 @@ import {
   ColorByOption,
   SilhouetteResult,
   SilhouetteSample,
-  COLOR_PALETTES
+  COLOR_PALETTES,
+  PCADiagnosticsResponse,
+  PCAContributionsResponse,
+  PCAOptimizationResponse,
+  PCA3DResponse,
+  ChemicalMapResponse
 } from '../types';
 
 interface Props {
@@ -37,10 +55,19 @@ interface Props {
   clusteringResults: ClusteringResults | null;
 }
 
-type Tab = 'varianza' | 'scores' | 'biplot' | 'loadings' | 'correlacion' | 'clustering' | 'silhouette';
+// Tipos para navegación jerárquica
+type MainTab = 'pca' | 'diagnostico' | 'visualizacion' | 'clustering' | 'datos';
+type SubTab = string;
 
 export default function ResultsPanel({ appState, pcaResults, clusteringResults }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('correlacion');
+  const [mainTab, setMainTab] = useState<MainTab>('datos');
+  const [subTabs, setSubTabs] = useState<Record<MainTab, SubTab>>({
+    pca: 'varianza',
+    diagnostico: 't2q',
+    visualizacion: 'mapa',
+    clustering: 'clusters',
+    datos: 'correlacion'
+  });
   const [settings, setSettings] = useState<ChartSettings>({
     colorBy: 'none',
     pointSize: 5,
@@ -55,6 +82,16 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
   const [silhouetteByK, setSilhouetteByK] = useState<{ resultados: SilhouetteResult[]; k_optimo: number | null } | null>(null);
   const [silhouetteSamples, setSilhouetteSamples] = useState<{ samples: SilhouetteSample[]; score_global: number | null } | null>(null);
 
+  // Estados para nuevos diagnósticos PCA
+  const [diagnosticsData, setDiagnosticsData] = useState<PCADiagnosticsResponse | null>(null);
+  const [contributionsData, setContributionsData] = useState<PCAContributionsResponse | null>(null);
+  const [selectedSampleForContrib, setSelectedSampleForContrib] = useState<number | null>(null);
+  const [contribMetricType, setContribMetricType] = useState<'T2' | 'Q'>('T2');
+  const [optimizationData, setOptimizationData] = useState<PCAOptimizationResponse | null>(null);
+  const [pca3dData, setPca3dData] = useState<PCA3DResponse | null>(null);
+  const [chemicalMapData, setChemicalMapData] = useState<ChemicalMapResponse | null>(null);
+  const [mapMethod, setMapMethod] = useState<'pca' | 'umap' | 'tsne'>('pca');
+
   // Cargar correlación cuando hay preprocesamiento
   useEffect(() => {
     if (appState.preprocessed && appState.sessionId) {
@@ -67,11 +104,11 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
   // Cambiar tab automáticamente según el estado
   useEffect(() => {
     if (appState.clusteringCalculated) {
-      setActiveTab('clustering');
+      setMainTab('clustering');
     } else if (appState.pcaCalculated) {
-      setActiveTab('varianza');
+      setMainTab('pca');
     } else if (appState.preprocessed) {
-      setActiveTab('correlacion');
+      setMainTab('datos');
     }
   }, [appState.preprocessed, appState.pcaCalculated, appState.clusteringCalculated]);
 
@@ -92,6 +129,58 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
         .catch(console.error);
     }
   }, [appState.clusteringCalculated, appState.sessionId]);
+
+  // Cargar diagnósticos PCA cuando hay PCA calculado
+  useEffect(() => {
+    if (appState.pcaCalculated && appState.sessionId) {
+      getPCADiagnostics(appState.sessionId)
+        .then(res => setDiagnosticsData(res))
+        .catch(console.error);
+
+      getPCAOptimization(appState.sessionId)
+        .then(res => setOptimizationData(res))
+        .catch(console.error);
+    }
+  }, [appState.pcaCalculated, appState.sessionId]);
+
+  // Cargar datos 3D cuando hay PCA con suficientes componentes
+  useEffect(() => {
+    if (appState.pcaCalculated && appState.sessionId && pcaResults && pcaResults.n_componentes >= 3) {
+      getPCA3D(appState.sessionId)
+        .then(res => setPca3dData(res))
+        .catch(console.error);
+    }
+  }, [appState.pcaCalculated, appState.sessionId, pcaResults?.n_componentes]);
+
+  // Cargar mapa químico cuando cambia el método o hay preprocesamiento
+  useEffect(() => {
+    if (appState.preprocessed && appState.sessionId) {
+      getChemicalMap({
+        session_id: appState.sessionId,
+        metodo: mapMethod
+      })
+        .then(res => setChemicalMapData(res))
+        .catch(console.error);
+    }
+  }, [appState.preprocessed, appState.sessionId, mapMethod, appState.pcaCalculated, appState.clusteringCalculated]);
+
+  // Cargar contribuciones cuando se selecciona una muestra
+  useEffect(() => {
+    if (selectedSampleForContrib !== null && appState.sessionId && appState.pcaCalculated) {
+      getPCAContributions({
+        session_id: appState.sessionId,
+        sample_index: selectedSampleForContrib,
+        tipo_metrica: contribMetricType
+      })
+        .then(res => setContributionsData(res))
+        .catch(console.error);
+    }
+  }, [selectedSampleForContrib, contribMetricType, appState.sessionId, appState.pcaCalculated]);
+
+  // Handler para selección de muestra desde gráfico de diagnósticos
+  const handleSampleSelectForContrib = (sampleIndex: number) => {
+    setSelectedSampleForContrib(sampleIndex);
+  };
 
   // Manejadores de descarga
   const handleDownloadResults = async () => {
@@ -147,22 +236,92 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
     );
   }
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode; requires?: string }[] = [
-    { id: 'varianza', label: 'Varianza', icon: <BarChart3 className="w-4 h-4" />, requires: 'pca' },
-    { id: 'scores', label: 'Scores', icon: <Grid3X3 className="w-4 h-4" />, requires: 'pca' },
-    { id: 'biplot', label: 'Biplot', icon: <GitBranch className="w-4 h-4" />, requires: 'pca' },
-    { id: 'loadings', label: 'Loadings', icon: <Table2 className="w-4 h-4" />, requires: 'pca' },
-    { id: 'correlacion', label: 'Correlación', icon: <Grid3X3 className="w-4 h-4" /> },
-    { id: 'clustering', label: 'Clustering', icon: <GitBranch className="w-4 h-4" />, requires: 'clustering' },
-    { id: 'silhouette', label: 'Silhouette', icon: <BarChart3 className="w-4 h-4" />, requires: 'pca' },
+  // Estructura jerárquica de tabs
+  const mainTabs: {
+    id: MainTab;
+    label: string;
+    icon: React.ReactNode;
+    requires?: 'pca' | 'clustering' | 'preprocessed';
+    subTabs: { id: string; label: string; requires?: string }[];
+  }[] = [
+    {
+      id: 'datos',
+      label: 'Datos',
+      icon: <Database className="w-4 h-4" />,
+      requires: 'preprocessed',
+      subTabs: [
+        { id: 'correlacion', label: 'Correlación' }
+      ]
+    },
+    {
+      id: 'pca',
+      label: 'PCA',
+      icon: <BarChart3 className="w-4 h-4" />,
+      requires: 'pca',
+      subTabs: [
+        { id: 'varianza', label: 'Varianza' },
+        { id: 'scores', label: 'Scores' },
+        { id: 'biplot', label: 'Biplot' },
+        { id: 'loadings', label: 'Loadings' }
+      ]
+    },
+    {
+      id: 'diagnostico',
+      label: 'Diagnóstico',
+      icon: <AlertTriangle className="w-4 h-4" />,
+      requires: 'pca',
+      subTabs: [
+        { id: 't2q', label: 'T² vs Q' },
+        { id: 'optimizacion', label: 'Optimización' }
+      ]
+    },
+    {
+      id: 'visualizacion',
+      label: 'Visualización',
+      icon: <Eye className="w-4 h-4" />,
+      requires: 'preprocessed',
+      subTabs: [
+        { id: 'mapa', label: 'Mapa Químico' },
+        { id: 'vista3d', label: '3D', requires: 'pca3d' }
+      ]
+    },
+    {
+      id: 'clustering',
+      label: 'Clustering',
+      icon: <Layers className="w-4 h-4" />,
+      requires: 'pca',
+      subTabs: [
+        { id: 'clusters', label: 'Clusters', requires: 'clustering' },
+        { id: 'silhouette', label: 'Silhouette' }
+      ]
+    }
   ];
 
-  const availableTabs = tabs.filter(tab => {
+  // Filtrar main tabs disponibles
+  const availableMainTabs = mainTabs.filter(tab => {
     if (!tab.requires) return true;
+    if (tab.requires === 'preprocessed') return appState.preprocessed;
     if (tab.requires === 'pca') return appState.pcaCalculated;
     if (tab.requires === 'clustering') return appState.clusteringCalculated;
     return true;
   });
+
+  // Obtener sub-tabs disponibles para el main tab actual
+  const currentMainTabConfig = mainTabs.find(t => t.id === mainTab);
+  const availableSubTabs = currentMainTabConfig?.subTabs.filter(sub => {
+    if (!sub.requires) return true;
+    if (sub.requires === 'pca3d') return appState.pcaCalculated && pcaResults && pcaResults.n_componentes >= 3;
+    if (sub.requires === 'clustering') return appState.clusteringCalculated;
+    return true;
+  }) || [];
+
+  // Función helper para obtener el sub-tab activo actual
+  const activeSubTab = subTabs[mainTab];
+
+  // Handler para cambiar sub-tab
+  const handleSubTabChange = (subTabId: string) => {
+    setSubTabs(prev => ({ ...prev, [mainTab]: subTabId }));
+  };
 
   // Componente para mostrar interpretaciones
   const InterpretationBox = ({
@@ -366,48 +525,71 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
 
   return (
     <div className="card h-full flex flex-col" data-teaching-id="results-panel">
-      {/* Header con tabs */}
-      <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
-        <div className="flex flex-wrap gap-1">
-          {availableTabs.map(tab => (
+      {/* Header con tabs principales */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+          {/* Main tabs */}
+          <div className="flex gap-1">
+            {availableMainTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setMainTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  mainTab === tab.id
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-secondary-600 hover:bg-gray-100'
+                }`}
+              >
+                {tab.icon}
+                <span className={`mx-0.5 ${mainTab === tab.id ? 'text-white/50' : 'text-secondary-300'}`}>|</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Botón de configuración */}
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all ${
-                activeTab === tab.id
-                  ? 'bg-primary-100 text-primary-700 font-medium'
-                  : 'text-secondary-500 hover:bg-gray-100'
+              onClick={() => setShowSettings(!showSettings)}
+              className={`p-2 rounded-lg transition-all ${
+                showSettings ? 'bg-primary-100 text-primary-700' : 'text-secondary-500 hover:bg-gray-100'
               }`}
+              title="Configuración de gráficos"
             >
-              {tab.icon}
-              {tab.label}
+              <Settings2 className="w-4 h-4" />
             </button>
-          ))}
+
+            {/* Botón de descarga */}
+            {(appState.pcaCalculated || appState.clusteringCalculated) && (
+              <button
+                onClick={handleDownloadResults}
+                className="btn-secondary flex items-center gap-1.5 text-sm py-1.5"
+              >
+                <Download className="w-4 h-4" />
+                CSV
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Botón de configuración */}
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-lg transition-all ${
-              showSettings ? 'bg-primary-100 text-primary-700' : 'text-secondary-500 hover:bg-gray-100'
-            }`}
-            title="Configuración de gráficos"
-          >
-            <Settings2 className="w-4 h-4" />
-          </button>
-
-          {/* Botón de descarga */}
-          {(appState.pcaCalculated || appState.clusteringCalculated) && (
-            <button
-              onClick={handleDownloadResults}
-              className="btn-secondary flex items-center gap-1.5 text-sm py-1.5"
-            >
-              <Download className="w-4 h-4" />
-              CSV
-            </button>
-          )}
-        </div>
+        {/* Sub-tabs (solo si hay más de uno disponible) */}
+        {availableSubTabs.length > 1 && (
+          <div className="flex gap-1 pt-3 pl-2 mt-2 bg-gray-50 rounded-lg py-2">
+            {availableSubTabs.map(subTab => (
+              <button
+                key={subTab.id}
+                onClick={() => handleSubTabChange(subTab.id)}
+                className={`px-3 py-1.5 rounded text-xs transition-all ${
+                  activeSubTab === subTab.id
+                    ? 'bg-white text-primary-700 font-medium shadow-sm border border-gray-200'
+                    : 'text-secondary-500 hover:bg-gray-100'
+                }`}
+              >
+                {subTab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Panel de configuración - personalizado por tab */}
@@ -430,7 +612,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
             </div>
 
             {/* Opciones solo para gráficos con puntos (scores, biplot) */}
-            {(activeTab === 'scores' || activeTab === 'biplot') && (
+            {(mainTab === 'pca' && (activeSubTab === 'scores' || activeSubTab === 'biplot')) && (
               <>
                 {/* Color por */}
                 <div>
@@ -477,7 +659,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
             )}
 
             {/* Selector de ejes PC (solo para scores y biplot) */}
-            {(activeTab === 'scores' || activeTab === 'biplot') && pcOptions.length > 1 && (
+            {(mainTab === 'pca' && (activeSubTab === 'scores' || activeSubTab === 'biplot')) && pcOptions.length > 1 && (
               <>
                 <div>
                   <label className="label text-xs">Eje X</label>
@@ -520,7 +702,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
       {/* Contenido del tab activo */}
       <div className="flex-1 overflow-auto">
         {/* Tab: Varianza explicada */}
-        {activeTab === 'varianza' && pcaResults && (
+        {mainTab === 'pca' && activeSubTab === 'varianza' && pcaResults && (
           <div>
             <h4 className="text-sm font-medium text-secondary-700 mb-3">
               Varianza Explicada por Componente
@@ -557,7 +739,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
         )}
 
         {/* Tab: Scores */}
-        {activeTab === 'scores' && pcaResults && (
+        {mainTab === 'pca' && activeSubTab === 'scores' && pcaResults && (
           <div>
             <h4 className="text-sm font-medium text-secondary-700 mb-3">
               Gráfico de Scores ({pcAxes.x} vs {pcAxes.y})
@@ -580,7 +762,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
         )}
 
         {/* Tab: Biplot */}
-        {activeTab === 'biplot' && pcaResults && (
+        {mainTab === 'pca' && activeSubTab === 'biplot' && pcaResults && (
           <div>
             <h4 className="text-sm font-medium text-secondary-700 mb-3">
               Biplot ({pcAxes.x} vs {pcAxes.y})
@@ -602,7 +784,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
         )}
 
         {/* Tab: Loadings */}
-        {activeTab === 'loadings' && pcaResults && (
+        {mainTab === 'pca' && activeSubTab === 'loadings' && pcaResults && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium text-secondary-700">
@@ -681,7 +863,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
         )}
 
         {/* Tab: Correlación */}
-        {activeTab === 'correlacion' && correlationData && (
+        {mainTab === 'datos' && activeSubTab === 'correlacion' && correlationData && (
           <div>
             <h4 className="text-sm font-medium text-secondary-700 mb-3">
               Matriz de Correlación
@@ -700,7 +882,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
         )}
 
         {/* Tab: Clustering */}
-        {activeTab === 'clustering' && clusteringResults && (
+        {mainTab === 'clustering' && activeSubTab === 'clusters' && clusteringResults && (
           <div className="space-y-6">
             <div>
               <h4 className="text-sm font-medium text-secondary-700 mb-3">
@@ -791,7 +973,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
         )}
 
         {/* Tab: Análisis de Silhouette */}
-        {activeTab === 'silhouette' && silhouetteByK && (
+        {mainTab === 'clustering' && activeSubTab === 'silhouette' && silhouetteByK && (
           <div>
             <h4 className="text-sm font-medium text-secondary-700 mb-3">
               Silhouette Score vs Número de Clústeres
@@ -804,6 +986,178 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
             <InterpretationBox
               howTo="Este gráfico ayuda a elegir el número óptimo de clústeres (k). El eje Y muestra el Silhouette Score para cada valor de k. El valor de k con mayor Silhouette Score es generalmente el mejor. Un score alto indica que las muestras están bien asignadas a su clúster y lejos de otros clústeres."
               auto={getSilhouetteInterpretation()}
+            />
+          </div>
+        )}
+
+        {/* Tab: Diagnósticos PCA (T² vs Q) */}
+        {mainTab === 'diagnostico' && activeSubTab === 't2q' && diagnosticsData && (
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-sm font-medium text-secondary-700 mb-3">
+                Gráfico de Diagnóstico: Hotelling T² vs Q-Residual
+              </h4>
+              <DiagnosticsScatter
+                diagnostics={diagnosticsData}
+                onSampleSelect={handleSampleSelectForContrib}
+                selectedSample={selectedSampleForContrib}
+                colorBy="outlier"
+                palette={settings.palette}
+              />
+            </div>
+
+            {/* Contribuciones por variable */}
+            {selectedSampleForContrib !== null && (
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-secondary-700">
+                    Contribuciones por Variable (Muestra #{selectedSampleForContrib})
+                  </h4>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setContribMetricType('T2')}
+                      className={`px-3 py-1 text-xs rounded ${
+                        contribMetricType === 'T2'
+                          ? 'bg-primary-100 text-primary-700'
+                          : 'bg-gray-100 text-secondary-600'
+                      }`}
+                    >
+                      T² (Hotelling)
+                    </button>
+                    <button
+                      onClick={() => setContribMetricType('Q')}
+                      className={`px-3 py-1 text-xs rounded ${
+                        contribMetricType === 'Q'
+                          ? 'bg-primary-100 text-primary-700'
+                          : 'bg-gray-100 text-secondary-600'
+                      }`}
+                    >
+                      Q-Residual
+                    </button>
+                  </div>
+                </div>
+                {contributionsData ? (
+                  <ContributionsBar
+                    contributions={contributionsData}
+                    palette={settings.palette}
+                  />
+                ) : (
+                  <p className="text-sm text-secondary-500">Cargando contribuciones...</p>
+                )}
+              </div>
+            )}
+
+            {selectedSampleForContrib === null && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Tip:</strong> Haz clic en un punto del gráfico para ver qué variables
+                  contribuyen a su posición anómala.
+                </p>
+              </div>
+            )}
+
+            <InterpretationBox
+              howTo="El gráfico T² vs Q combina dos métricas de diagnóstico. T² (Hotelling) mide la distancia de cada muestra al centro del modelo en el espacio de componentes principales. Q (SPE) mide el error de reconstrucción. Las líneas rojas marcan el límite al 95%. Puntos fuera de estos límites son outliers potenciales."
+              auto={`Se detectaron ${diagnosticsData.estadisticas.n_outliers_combinados} muestras con anomalías combinadas (T² y Q elevados). ${diagnosticsData.estadisticas.n_outliers_t2} muestras tienen T² elevado y ${diagnosticsData.estadisticas.n_outliers_q} tienen Q elevado.`}
+            />
+          </div>
+        )}
+
+        {/* Tab: Optimización de PCs */}
+        {mainTab === 'diagnostico' && activeSubTab === 'optimizacion' && optimizationData && (
+          <div>
+            <h4 className="text-sm font-medium text-secondary-700 mb-3">
+              Selección Óptima de Componentes Principales
+            </h4>
+            <OptimizationChart
+              optimization={optimizationData}
+              palette={settings.palette}
+            />
+            <InterpretationBox
+              howTo="Este gráfico muestra la varianza explicada (barras y línea naranja) y el error de reconstrucción (línea roja) para cada número de componentes. El punto óptimo balancea capturar suficiente varianza (generalmente >80-90%) con no usar demasiados componentes. La línea verde marca la recomendación del sistema."
+              auto={optimizationData.interpretacion}
+            />
+          </div>
+        )}
+
+        {/* Tab: Vista 3D */}
+        {mainTab === 'visualizacion' && activeSubTab === 'vista3d' && pca3dData && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-secondary-700">
+                Proyección 3D de Scores (PC1-PC2-PC3)
+              </h4>
+              <div className="flex gap-2">
+                <select
+                  value={settings.colorBy}
+                  onChange={(e) => setSettings({ ...settings, colorBy: e.target.value as ColorByOption })}
+                  className="select text-xs py-1"
+                >
+                  <option value="none">Sin color</option>
+                  <option value="feedstock">Feedstock</option>
+                  <option value="concentration">Concentración</option>
+                  {appState.clusteringCalculated && <option value="cluster">Clúster</option>}
+                </select>
+              </div>
+            </div>
+            <PCA3DScatter
+              data={pca3dData}
+              colorBy={settings.colorBy as 'none' | 'feedstock' | 'concentration' | 'cluster' | 'T2' | 'Q'}
+              showLoadings={false}
+              palette={settings.palette}
+              pointSize={settings.pointSize}
+            />
+            <InterpretationBox
+              howTo="La visualización 3D muestra las muestras en el espacio de los tres primeros componentes principales. Puedes rotar el gráfico arrastrando con el mouse, hacer zoom con la rueda y desplazarte. Los colores ayudan a identificar patrones por feedstock, concentración o cluster."
+              auto={`Los tres primeros componentes capturan ${pca3dData.varianza?.total_3d.toFixed(1) || '?'}% de la varianza total. ${pca3dData.tiene_clusters ? 'Los clusters están disponibles para colorear.' : 'Ejecuta clustering para ver grupos.'}`}
+            />
+          </div>
+        )}
+
+        {/* Tab: Mapa Químico 2.0 */}
+        {mainTab === 'visualizacion' && activeSubTab === 'mapa' && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-secondary-700">
+                Mapa Químico 2.0
+              </h4>
+              <div className="flex gap-2">
+                <select
+                  value={mapMethod}
+                  onChange={(e) => setMapMethod(e.target.value as 'pca' | 'umap' | 'tsne')}
+                  className="select text-xs py-1"
+                >
+                  <option value="pca">PCA</option>
+                  <option value="tsne">t-SNE</option>
+                  <option value="umap">UMAP</option>
+                </select>
+                <select
+                  value={settings.colorBy}
+                  onChange={(e) => setSettings({ ...settings, colorBy: e.target.value as ColorByOption })}
+                  className="select text-xs py-1"
+                >
+                  <option value="cluster">Clúster</option>
+                  <option value="feedstock">Feedstock</option>
+                  <option value="concentration">Concentración</option>
+                </select>
+              </div>
+            </div>
+            {chemicalMapData ? (
+              <ChemicalMap
+                data={chemicalMapData}
+                colorBy={settings.colorBy as 'feedstock' | 'concentration' | 'cluster'}
+                highlightOutliers={true}
+                palette={settings.palette}
+                pointSize={settings.pointSize}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-64">
+                <p className="text-secondary-500">Cargando mapa químico...</p>
+              </div>
+            )}
+            <InterpretationBox
+              howTo="El mapa químico proyecta todas las muestras en 2D, donde muestras similares quedan cercanas. PCA preserva la estructura global, t-SNE enfatiza grupos locales, y UMAP balancea ambos. Los outliers (puntos rojos) son muestras con características anómalas detectadas por T²/Q."
+              auto={`Mapa generado con ${chemicalMapData?.metodo || mapMethod}. ${chemicalMapData?.outliers.length || 0} outliers detectados. ${chemicalMapData?.tiene_clusters ? `Mostrando ${new Set(chemicalMapData.puntos.map(p => p.cluster).filter(c => c !== null)).size} clusters.` : 'Ejecuta clustering para ver agrupaciones.'}`}
             />
           </div>
         )}

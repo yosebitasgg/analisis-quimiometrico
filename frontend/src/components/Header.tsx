@@ -1,9 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { BarChart3, Database, HelpCircle, Brain, Fingerprint, FileText, GraduationCap } from 'lucide-react';
+import { BarChart3, Database, HelpCircle, Brain, Fingerprint, FileText, GraduationCap, MessageCircle } from 'lucide-react';
 import { useTeaching } from '../context/TeachingContext';
+import { useAssistant } from '../context/AssistantContext';
 
 export default function Header() {
   const { isTeachingMode, toggleTeachingMode } = useTeaching();
+  const { toggleSidebar, isOpen: isAssistantOpen } = useAssistant();
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
@@ -74,6 +76,20 @@ export default function Header() {
               <span className="hidden lg:inline">
                 {isTeachingMode ? 'Modo Enseñanza' : 'Tutorial'}
               </span>
+            </button>
+
+            {/* Botón Asistente */}
+            <button
+              onClick={toggleSidebar}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+                isAssistantOpen
+                  ? 'bg-primary-100 text-primary-700 font-medium ring-2 ring-primary-300'
+                  : 'text-secondary-600 hover:bg-primary-50 hover:text-primary-700'
+              }`}
+              title={isAssistantOpen ? 'Cerrar asistente' : 'Abrir asistente'}
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span className="hidden lg:inline">Asistente</span>
             </button>
           </nav>
         </div>
