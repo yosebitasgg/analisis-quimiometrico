@@ -32,6 +32,7 @@ yarn-error.log*
 
 # Build outputs
 frontend/dist/
+frontend/dev-dist/
 backend/*.db
 
 # IDE
