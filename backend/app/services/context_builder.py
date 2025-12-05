@@ -299,3 +299,205 @@ def get_compact_context(session_id: Optional[str]) -> Dict[str, Any]:
         }
 
     return context
+
+
+def get_pipeline_status(session_id: Optional[str]) -> Dict[str, Any]:
+    """
+    Obtiene el estado del pipeline de análisis como flags booleanos.
+    Este formato es ideal para que el LLM razone qué pasos faltan.
+
+    Args:
+        session_id: ID de la sesión actual
+
+    Returns:
+        Dict con flags de estado del pipeline
+    """
+    if not session_id or not store.sesion_existe(session_id):
+        return {
+            "has_session": False,
+            "has_data": False,
+            "has_preprocessing": False,
+            "has_pca": False,
+            "has_clustering": False,
+            "has_classifier_feedstock": False,
+            "has_classifier_concentration": False,
+            "dataset_info": None,
+            "pca_info": None,
+            "clustering_info": None
+        }
+
+    session = store.obtener_sesion(session_id)
+
+    # Flags básicos
+    has_data = session.df_original is not None
+    has_preprocessing = session.X_procesado is not None
+    has_pca = session.pca_scores is not None
+    has_clustering = session.cluster_labels is not None
+    has_classifier_feedstock = (
+        session.classifier_feedstock is not None and
+        session.classifier_feedstock.modelo is not None
+    )
+    has_classifier_concentration = (
+        session.classifier_concentration is not None and
+        session.classifier_concentration.modelo is not None
+    )
+
+    # Info adicional del dataset
+    dataset_info = None
+    if has_data:
+        dataset_info = {
+            "n_samples": len(session.df_original),
+            "n_variables": len(session.columnas_numericas),
+            "has_feedstock": session.feedstock is not None,
+            "has_concentration": session.concentration is not None
+        }
+
+    # Info adicional de PCA
+    pca_info = None
+    if has_pca and session.pca_varianza is not None:
+        pca_info = {
+            "n_components": len(session.pca_varianza),
+            "total_variance": float(sum(session.pca_varianza) * 100)
+        }
+
+    # Info adicional de clustering
+    clustering_info = None
+    if has_clustering:
+        import numpy as np
+        clustering_info = {
+            "method": session.cluster_metodo,
+            "n_clusters": len(np.unique(session.cluster_labels))
+        }
+
+    return {
+        "has_session": True,
+        "has_data": has_data,
+        "has_preprocessing": has_preprocessing,
+        "has_pca": has_pca,
+        "has_clustering": has_clustering,
+        "has_classifier_feedstock": has_classifier_feedstock,
+        "has_classifier_concentration": has_classifier_concentration,
+        "dataset_info": dataset_info,
+        "pca_info": pca_info,
+        "clustering_info": clustering_info
+    }
+
+
+def build_copilot_context(session_id: Optional[str]) -> str:
+    """
+    Construye un contexto optimizado para el Modo Copilot.
+    Incluye el estado del pipeline de forma clara para que el LLM
+    pueda razonar qué pasos faltan para completar una tarea.
+
+    Args:
+        session_id: ID de la sesión actual
+
+    Returns:
+        String con el contexto formateado para el Copilot
+    """
+    # Obtener estado del pipeline
+    status = get_pipeline_status(session_id)
+
+    context_parts = []
+
+    # =========================================================================
+    # ESTADO DEL PIPELINE (FLAGS CLAROS)
+    # =========================================================================
+    context_parts.append("""## Estado del Pipeline de Análisis
+""")
+
+    # Estado de datos
+    if status["has_data"]:
+        info = status["dataset_info"]
+        context_parts.append(f"""### ✅ Datos Cargados
+- Muestras: {info['n_samples']}
+- Variables numéricas: {info['n_variables']}
+- Tiene feedstock: {'Sí' if info['has_feedstock'] else 'No'}
+- Tiene concentration: {'Sí' if info['has_concentration'] else 'No'}
+""")
+    else:
+        context_parts.append("""### ❌ NO hay datos cargados
+- Se requiere cargar datos antes de cualquier análisis.
+- Acción disponible: LOAD_EXAMPLE_DATA
+""")
+
+    # Estado de preprocesamiento
+    if status["has_preprocessing"]:
+        context_parts.append("""### ✅ Preprocesamiento Aplicado
+- Los datos están estandarizados y listos para análisis.
+""")
+    elif status["has_data"]:
+        context_parts.append("""### ❌ NO hay preprocesamiento
+- Se requiere preprocesar antes de PCA/Clustering.
+- Acción disponible: RUN_PREPROCESSING_AUTO
+""")
+
+    # Estado de PCA
+    if status["has_pca"]:
+        info = status["pca_info"]
+        context_parts.append(f"""### ✅ PCA Realizado
+- Componentes: {info['n_components']}
+- Varianza explicada: {info['total_variance']:.1f}%
+""")
+    elif status["has_preprocessing"]:
+        context_parts.append("""### ❌ NO hay PCA
+- El PCA aún no se ha calculado.
+- Acciones disponibles: RUN_PCA_AUTO, RUN_PCA_CUSTOM
+""")
+
+    # Estado de Clustering
+    if status["has_clustering"]:
+        info = status["clustering_info"]
+        context_parts.append(f"""### ✅ Clustering Realizado
+- Método: {info['method']}
+- Número de clusters: {info['n_clusters']}
+""")
+    elif status["has_pca"]:
+        context_parts.append("""### ❌ NO hay Clustering
+- El clustering aún no se ha realizado.
+- Acciones disponibles: RUN_CLUSTERING_AUTO, RUN_CLUSTERING_CUSTOM
+""")
+
+    # Estado de clasificadores
+    if status["has_classifier_feedstock"]:
+        context_parts.append("""### ✅ Clasificador Feedstock Entrenado
+""")
+
+    if status["has_classifier_concentration"]:
+        context_parts.append("""### ✅ Clasificador Concentration Entrenado
+""")
+
+    # =========================================================================
+    # RESUMEN PARA RAZONAMIENTO
+    # =========================================================================
+    context_parts.append("""
+## Resumen para Razonamiento de Pipeline
+""")
+
+    if not status["has_data"]:
+        context_parts.append("""- **ESTADO INICIAL**: No hay datos. Todo análisis requiere cargar datos primero.
+- **PRÓXIMO PASO RECOMENDADO**: LOAD_EXAMPLE_DATA → RUN_PREPROCESSING_AUTO → análisis deseado
+""")
+    elif not status["has_preprocessing"]:
+        context_parts.append("""- **DATOS LISTOS**: Hay datos pero sin preprocesar.
+- **PRÓXIMO PASO RECOMENDADO**: RUN_PREPROCESSING_AUTO → análisis deseado
+""")
+    elif not status["has_pca"]:
+        context_parts.append("""- **PREPROCESAMIENTO LISTO**: Datos preprocesados, listos para PCA.
+- **PRÓXIMO PASO RECOMENDADO**: RUN_PCA_AUTO para análisis exploratorio
+""")
+    else:
+        context_parts.append("""- **ANÁLISIS AVANZADO POSIBLE**: PCA completado.
+- **OPCIONES**: Clustering, clasificadores, reportes, recalcular con otros parámetros.
+""")
+
+    # Añadir también el contexto detallado tradicional si hay análisis
+    if status["has_data"]:
+        detailed_context = build_analysis_context(session_id)
+        if detailed_context and "no hay" not in detailed_context.lower():
+            context_parts.append(f"""
+## Detalles del Análisis Actual
+{detailed_context}
+""")
+
+    return "\n".join(context_parts)

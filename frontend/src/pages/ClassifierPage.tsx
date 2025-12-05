@@ -6,28 +6,62 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 
+// Tipo para la configuración del clasificador
+interface ClassifierConfig {
+  target: 'feedstock' | 'concentration';
+  modelo: 'random_forest' | 'logistic_regression' | 'svm';
+  usarPca: boolean;
+  nEstimators: number;
+  testSize: number;
+}
+
 interface ClassifierPageProps {
   appState: AppState;
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
+  // Estado global para persistir entre cambios de página
+  classifierResults: ClassifierTrainResponse | null;
+  setClassifierResults: React.Dispatch<React.SetStateAction<ClassifierTrainResponse | null>>;
+  classifierConfig: ClassifierConfig;
+  setClassifierConfig: React.Dispatch<React.SetStateAction<ClassifierConfig>>;
+  predictions: PredictionResult[];
+  setPredictions: React.Dispatch<React.SetStateAction<PredictionResult[]>>;
 }
 
-export default function ClassifierPage({ appState, setAppState }: ClassifierPageProps) {
-  // Estado de configuración
-  const [target, setTarget] = useState<'feedstock' | 'concentration'>('feedstock');
-  const [modelo, setModelo] = useState<'random_forest' | 'logistic_regression' | 'svm'>('random_forest');
-  const [usarPca, setUsarPca] = useState(true);
-  const [nEstimators, setNEstimators] = useState(100);
-  const [testSize, setTestSize] = useState(0.2);
+export default function ClassifierPage({
+  appState,
+  setAppState,
+  classifierResults,
+  setClassifierResults,
+  classifierConfig,
+  setClassifierConfig,
+  predictions,
+  setPredictions
+}: ClassifierPageProps) {
+  // Desestructurar la configuración global
+  const { target, modelo, usarPca, nEstimators, testSize } = classifierConfig;
 
-  // Estado de resultados
+  // Funciones para actualizar la configuración
+  const setTarget = (value: 'feedstock' | 'concentration') =>
+    setClassifierConfig(prev => ({ ...prev, target: value }));
+  const setModelo = (value: 'random_forest' | 'logistic_regression' | 'svm') =>
+    setClassifierConfig(prev => ({ ...prev, modelo: value }));
+  const setUsarPca = (value: boolean) =>
+    setClassifierConfig(prev => ({ ...prev, usarPca: value }));
+  const setNEstimators = (value: number) =>
+    setClassifierConfig(prev => ({ ...prev, nEstimators: value }));
+  const setTestSize = (value: number) =>
+    setClassifierConfig(prev => ({ ...prev, testSize: value }));
+
+  // Estado local solo para UI (loading, error)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [trainResult, setTrainResult] = useState<ClassifierTrainResponse | null>(null);
 
-  // Estado de predicción
+  // Estado de predicción (solo índices es local, las predicciones son globales)
   const [predicting, setPredicting] = useState(false);
   const [sampleIndices, setSampleIndices] = useState('0,1,2');
-  const [predictions, setPredictions] = useState<PredictionResult[]>([]);
+
+  // Usar el resultado global en lugar de local
+  const trainResult = classifierResults;
 
   // Verificar requisitos
   const canTrain = appState.sessionId && appState.preprocessed && (usarPca ? appState.pcaCalculated : true);
@@ -50,7 +84,8 @@ export default function ClassifierPage({ appState, setAppState }: ClassifierPage
         test_size: testSize
       });
 
-      setTrainResult(result);
+      // Usar el setter global para que persista entre cambios de página
+      setClassifierResults(result);
 
       // Actualizar estado global para el modo enseñanza
       setAppState(prev => ({ ...prev, classifierTrained: true }));

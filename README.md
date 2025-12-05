@@ -99,17 +99,34 @@ La aplicación incluye un **modo enseñanza** integrado que guía al usuario pas
 </tr>
 </table>
 
+### Tour de Bienvenida
+
+Onboarding automático que aparece **solo la primera vez** que el usuario abre la aplicación. Presenta las zonas clave de la interfaz:
+
+1. **Bienvenida general** - Introducción a Chemometrics Helper
+2. **Navegación principal** - Descripción de cada página (Análisis, Clasificador, Similitud, etc.)
+3. **Modo Enseñanza** - Cómo activar el tutorial guiado
+4. **Asistente Quimiométrico** - Chatbot integrado con IA
+5. **Cierre** - Invitación a comenzar
+
+**Características técnicas:**
+- Usa la misma estética del Modo Enseñanza (overlay oscuro, borde azul animado)
+- Se puede cerrar en cualquier momento con el botón X o tecla Escape
+- Guarda en localStorage (`chemometrics_welcome_tour_seen`) para no volver a mostrarse
+- Se puede reactivar desde la página de **Ayuda** con el botón "Ver tour de bienvenida"
+
 ### Modo Enseñanza
 
 Tutorial guiado integrado que explica cada sección de la aplicación con overlays interactivos, ideal para aprender quimiometría paso a paso.
 
-### Asistente Quimiométrico Virtual
+### Asistente Quimiométrico Virtual (Modo Copilot)
 
 Chat inteligente integrado que utiliza **Google Gemini AI** para:
 - Interpretar resultados de PCA, clustering y clasificación
 - Explicar conceptos de quimiometría en español
 - Responder preguntas sobre tu análisis específico
 - **Preguntas sugeridas** adaptadas al modo de operación (IA/Demo)
+- **Modo Copilot**: propone y ejecuta acciones (PCA, clustering, clasificador) tras confirmación del usuario
 
 ### Navegación Jerárquica
 
@@ -493,8 +510,12 @@ chemometrics-helper/
 +-- frontend/
 |   +-- src/
 |   |   +-- components/             # Componentes React
+|   |   |   +-- WelcomeTour.tsx     # Tour de bienvenida (onboarding)
+|   |   |   +-- TeachingOverlay.tsx # Overlay del modo enseñanza
 |   |   +-- pages/                  # Páginas
 |   |   +-- context/                # Estado global
+|   |   |   +-- WelcomeTourContext.tsx  # Contexto del tour de bienvenida
+|   |   |   +-- TeachingContext.tsx     # Contexto del modo enseñanza
 |   |   +-- api/                    # Clientes API
 |   |   +-- types/                  # Tipos TypeScript
 |   +-- package.json
@@ -558,6 +579,7 @@ El archivo `data/chemometrics_example.xls` contiene datos de **FAMEs** (Fatty Ac
 | Fingerprinting químico | OK | Búsqueda por similitud |
 | Reportes PDF | OK | Generación automática |
 | Modo enseñanza | OK | Tutorial guiado interactivo |
+| Tour de bienvenida | OK | Onboarding automático primera visita |
 | Asistente Virtual | OK | Chat con Gemini AI + fallback demo |
 
 ---
@@ -616,6 +638,113 @@ Las preguntas están categorizadas por tema (PCA, Clustering, Clasificador, Dato
 2. Se abrirá un panel lateral con el chat
 3. Usa el botón **"Preguntas sugeridas"** o escribe tu propia pregunta
 4. El asistente responderá con interpretaciones basadas en tus datos
+
+---
+
+## Modo Copilot con Confirmación
+
+### Descripción
+
+El asistente incluye un **Modo Copilot** que permite proponer y ejecutar acciones en el sistema de análisis. A diferencia de un asistente pasivo que solo responde preguntas, el Copilot puede:
+
+- **Analizar** qué necesitas hacer basándose en tu solicitud
+- **Proponer acciones** concretas (PCA, clustering, clasificador, etc.)
+- **Ejecutar las acciones** solo después de tu confirmación
+
+### Flujo de Trabajo del Copilot
+
+```mermaid
+graph LR
+    A[Usuario escribe solicitud] --> B[Asistente analiza]
+    B --> C[Propone acciones]
+    C --> D{Usuario confirma}
+    D -->|Sí| E[Ejecuta acción]
+    D -->|No| F[Cancela]
+    E --> G[Muestra resultado]
+```
+
+### Ejemplos de Solicitudes
+
+| Solicitud del Usuario | Acción Propuesta |
+|----------------------|------------------|
+| *"Haz un PCA con la mejor configuración"* | Ejecutar PCA con optimización automática |
+| *"Ejecuta clustering con el k óptimo"* | Ejecutar K-means con k determinado por silhouette |
+| *"Entrena un clasificador para feedstock"* | Entrenar Random Forest para predecir feedstock |
+| *"Genera un reporte del análisis"* | Generar resumen del reporte |
+
+### Acciones Soportadas
+
+| Tipo de Acción | Descripción | Parámetros |
+|----------------|-------------|------------|
+| `RUN_PCA_AUTO` | PCA con optimización automática | `target_variance` |
+| `RUN_PCA_CUSTOM` | PCA con n componentes | `n_componentes` |
+| `RUN_CLUSTERING_AUTO` | Clustering con k óptimo | `metodo` |
+| `RUN_CLUSTERING_CUSTOM` | Clustering con k específico | `metodo`, `n_clusters` |
+| `TRAIN_CLASSIFIER_FEEDSTOCK` | Clasificador de feedstock | `modelo` |
+| `TRAIN_CLASSIFIER_CONCENTRATION` | Clasificador de concentración | `modelo` |
+| `GENERATE_REPORT` | Generar reporte | - |
+| `RUN_SIMILARITY_SEARCH` | Búsqueda de similitud | `sample_index`, `k` |
+
+### Interfaz de Usuario
+
+Cuando el asistente propone acciones, aparecen como **botones interactivos** debajo del mensaje:
+
+1. **Panel de Acciones Sugeridas**: Muestra las acciones propuestas con colores distintivos
+2. **Modal de Confirmación**: Al hacer clic, aparece un diálogo de confirmación
+3. **Ejecución y Resultado**: Tras confirmar, la acción se ejecuta y el resultado aparece como nuevo mensaje
+
+### Seguridad del Copilot
+
+El sistema implementa varias medidas de seguridad:
+
+- **Whitelist de Acciones**: Solo se pueden ejecutar tipos de acciones predefinidos
+- **Confirmación Obligatoria**: Ninguna acción se ejecuta sin confirmación del usuario
+- **Validación de Sesión**: Las acciones requieren una sesión válida con datos cargados
+- **Manejo de Errores**: Los errores se muestran de forma amigable en el chat
+
+### Endpoints del Copilot
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `POST` | `/api/assistant/chat` | Enviar mensaje (devuelve respuesta + acciones) |
+| `POST` | `/api/assistant/execute_action` | Ejecutar una acción confirmada |
+
+**Ejemplo de respuesta con acciones:**
+
+```json
+{
+  "reply": "Veo que tienes datos preprocesados. Te recomiendo ejecutar PCA...",
+  "mode": "real",
+  "actions": [
+    {
+      "id": "action-abc123",
+      "type": "RUN_PCA_AUTO",
+      "label": "Ejecutar PCA con 5 componentes recomendados",
+      "params": {"target_variance": 0.9}
+    }
+  ]
+}
+```
+
+**Ejemplo de ejecución de acción:**
+
+```json
+// Request
+{
+  "session_id": "session_1",
+  "action_id": "action-abc123",
+  "action_type": "RUN_PCA_AUTO",
+  "params": {"target_variance": 0.9}
+}
+
+// Response
+{
+  "success": true,
+  "summary": "✅ Se ejecutó PCA con 5 componentes principales (92.3% de varianza explicada).",
+  "action_type": "RUN_PCA_AUTO",
+  "data": {"n_componentes": 5, "varianza_total": 92.3}
+}
+```
 
 ---
 
@@ -712,7 +841,9 @@ Este proyecto es desarrollado con fines académicos para el curso de **Métodos 
 
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.2-blue?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-2.4--onboarding-blue?style=flat-square" alt="Version"/>
   <img src="https://img.shields.io/badge/license-Academic-green?style=flat-square" alt="License"/>
   <img src="https://img.shields.io/badge/AI-Gemini%20Powered-4285F4?style=flat-square&logo=google" alt="Gemini"/>
+  <img src="https://img.shields.io/badge/Copilot-Enabled-8B5CF6?style=flat-square" alt="Copilot"/>
+  <img src="https://img.shields.io/badge/Onboarding-Tour-10B981?style=flat-square" alt="Onboarding"/>
 </p>

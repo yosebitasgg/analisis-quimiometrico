@@ -1,6 +1,9 @@
-import { HelpCircle, BookOpen, BarChart3, Layers, TrendingUp, Lightbulb, Database, Users, AlertTriangle, Eye, Bot } from 'lucide-react';
+import { HelpCircle, BookOpen, BarChart3, Layers, TrendingUp, Lightbulb, Database, Users, AlertTriangle, Eye, Bot, Play } from 'lucide-react';
+import { useWelcomeTour } from '../context/WelcomeTourContext';
 
 export default function HelpPage() {
+  const { resetTour } = useWelcomeTour();
+
   const sections = [
     { id: 'intro', label: 'Introducción', icon: HelpCircle },
     { id: 'pca', label: 'Análisis PCA', icon: TrendingUp },
@@ -60,11 +63,18 @@ export default function HelpPage() {
               </p>
             </div>
           </div>
-          <p className="text-secondary-600">
+          <p className="text-secondary-600 mb-4">
             Esta herramienta te permite realizar análisis multivariado de datos químicos
             de forma sencilla, sin necesidad de programar. A continuación encontrarás
             explicaciones de los conceptos clave y consejos de interpretación.
           </p>
+          <button
+            onClick={resetTour}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+          >
+            <Play className="w-4 h-4" />
+            Ver tour de bienvenida
+          </button>
         </div>
 
         {/* PCA */}

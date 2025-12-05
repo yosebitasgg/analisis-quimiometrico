@@ -55,6 +55,14 @@ export async function getSessionInfo(sessionId: string) {
 }
 
 /**
+ * Obtiene el estado completo de la sesión para sincronización con la UI
+ */
+export async function getSessionState(sessionId: string): Promise<DataUploadResponse> {
+  const response = await apiClient.get<DataUploadResponse>(`/data/state/${sessionId}`);
+  return response.data;
+}
+
+/**
  * Descarga los resultados como CSV
  */
 export async function downloadResults(

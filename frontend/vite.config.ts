@@ -9,6 +9,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['tec.svg'],
+      devOptions: {
+        enabled: true,
+        type: 'module'
+      },
       manifest: {
         name: 'Chemometrics Helper',
         short_name: 'ChemoHelper',

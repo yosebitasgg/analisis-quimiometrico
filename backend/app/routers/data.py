@@ -161,6 +161,68 @@ async def obtener_info_sesion(session_id: str):
     }
 
 
+@router.get("/state/{session_id}", response_model=DataUploadResponse)
+async def obtener_estado_completo(session_id: str):
+    """
+    Obtiene el estado completo de la sesión para sincronización con la UI.
+    Similar a la respuesta de cargar-ejemplo pero para una sesión existente.
+    """
+    session = store.obtener_sesion(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+    if session.df_original is None:
+        raise HTTPException(status_code=400, detail="La sesión no tiene datos cargados")
+
+    try:
+        df = session.df_original
+
+        # Obtener información de columnas
+        columnas_numericas = session.columnas_numericas or df.select_dtypes(include=['number']).columns.tolist()
+        columnas_categoricas = session.columnas_categoricas or df.select_dtypes(exclude=['number']).columns.tolist()
+
+        # Info por columna
+        columnas_info = []
+        for col in df.columns:
+            col_info = {
+                "nombre": col,
+                "tipo": str(df[col].dtype),
+                "nulos": int(df[col].isnull().sum()),
+                "valores_unicos": int(df[col].nunique())
+            }
+            columnas_info.append(col_info)
+
+        # Valores de feedstock y concentration si existen
+        feedstock_valores = []
+        concentration_valores = []
+        for col in df.columns:
+            if col.lower() == 'feedstock':
+                feedstock_valores = sorted(df[col].dropna().unique().tolist())
+            elif col.lower() == 'concentration':
+                concentration_valores = sorted(df[col].dropna().unique().tolist())
+
+        # Muestra de datos
+        muestra_datos = df.head(10).to_dict('records')
+
+        return DataUploadResponse(
+            exito=True,
+            mensaje="Estado de sesión obtenido correctamente",
+            session_id=session_id,
+            num_filas=len(df),
+            num_columnas=len(df.columns),
+            columnas_numericas=columnas_numericas,
+            columnas_categoricas=columnas_categoricas,
+            columnas_info=columnas_info,
+            feedstock_valores=feedstock_valores,
+            concentration_valores=concentration_valores,
+            muestra_datos=muestra_datos,
+            preprocesado=session.X_procesado is not None
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/exportar/{session_id}")
 async def exportar_resultados(
     session_id: str,

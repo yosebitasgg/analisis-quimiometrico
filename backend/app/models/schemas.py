@@ -31,6 +31,7 @@ class DataUploadResponse(BaseModel):
     muestra_datos: List[Dict[str, Any]]
     feedstock_valores: Optional[List[int]] = None
     concentration_valores: Optional[List[int]] = None
+    preprocesado: Optional[bool] = False  # Para indicar si ya se aplicó preprocesamiento
 
 
 class PreprocessingRequest(BaseModel):
@@ -533,3 +534,38 @@ class ChemicalMapResponse(BaseModel):
     tiene_diagnosticos: bool
     outliers: List[int]
     ejes: MapAxes
+
+
+# ============================================================================
+# SCHEMAS DEL ASISTENTE COPILOT (ACCIONES)
+# ============================================================================
+
+class AssistantAction(BaseModel):
+    """Acción sugerida por el asistente"""
+    id: str = Field(..., description="Identificador único de la acción")
+    type: str = Field(..., description="Tipo de acción: RUN_PCA_AUTO, RUN_CLUSTERING_AUTO, etc.")
+    label: str = Field(..., description="Texto descriptivo para mostrar en el botón")
+    params: Dict[str, Any] = Field(default_factory=dict, description="Parámetros para ejecutar la acción")
+
+
+class AssistantCopilotResponse(BaseModel):
+    """Respuesta del asistente con acciones sugeridas"""
+    reply: str = Field(..., description="Respuesta textual del asistente")
+    mode: str = Field(..., description="Modo de operación: 'real' o 'demo'")
+    actions: List[AssistantAction] = Field(default_factory=list, description="Lista de acciones sugeridas")
+
+
+class ExecuteActionRequest(BaseModel):
+    """Request para ejecutar una acción del copilot"""
+    session_id: str = Field(..., description="ID de la sesión")
+    action_id: str = Field(..., description="ID de la acción a ejecutar")
+    action_type: str = Field(..., description="Tipo de acción")
+    params: Dict[str, Any] = Field(default_factory=dict, description="Parámetros de la acción")
+
+
+class ExecuteActionResponse(BaseModel):
+    """Respuesta de la ejecución de una acción"""
+    success: bool = Field(..., description="Si la acción se ejecutó correctamente")
+    summary: str = Field(..., description="Resumen de lo que se hizo")
+    action_type: str = Field(..., description="Tipo de acción ejecutada")
+    data: Optional[Dict[str, Any]] = Field(default=None, description="Datos resultantes (opcional)")

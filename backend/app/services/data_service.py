@@ -101,11 +101,37 @@ def procesar_dataframe(df: pd.DataFrame, session_id: str) -> Dict[str, Any]:
     """
     Procesa un DataFrame cargado y almacena en la sesión.
     Retorna información sobre los datos.
+    IMPORTANTE: Limpia resultados previos de análisis al cargar nuevos datos.
     """
     session = store.obtener_sesion(session_id)
     if not session:
         raise ValueError("Sesión no encontrada")
 
+    # ==========================================================================
+    # LIMPIAR RESULTADOS PREVIOS - Importante para evitar inconsistencias
+    # ==========================================================================
+    # Limpiar datos preprocesados
+    session.df_preprocesado = None
+    session.X_procesado = None
+    session.columnas_seleccionadas = []
+
+    # Limpiar resultados de PCA
+    session.pca_scores = None
+    session.pca_loadings = None
+    session.pca_varianza = None
+    session.pca_componentes_nombres = []
+
+    # Limpiar resultados de clustering
+    session.cluster_labels = None
+    session.cluster_metodo = None
+
+    # Limpiar clasificadores
+    session.classifier_feedstock = None
+    session.classifier_concentration = None
+
+    # ==========================================================================
+    # PROCESAR NUEVOS DATOS
+    # ==========================================================================
     # Limpiar nombres de columnas
     df.columns = [str(col).strip() for col in df.columns]
 

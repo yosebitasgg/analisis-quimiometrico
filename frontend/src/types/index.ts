@@ -47,6 +47,7 @@ export interface DataUploadResponse {
   muestra_datos: Record<string, unknown>[];
   feedstock_valores: number[] | null;
   concentration_valores: number[] | null;
+  preprocesado?: boolean;  // Indica si ya se aplico preprocesamiento
 }
 
 // ============================================================================

@@ -6,24 +6,57 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 
+// Tipo para la configuración de similitud
+interface SimilarityConfig {
+  sampleIndex: number;
+  space: 'pca' | 'original';
+  metric: 'euclidean' | 'cosine';
+  k: number;
+}
+
 interface SimilarityPageProps {
   appState: AppState;
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
   pcaResults: PCAResults | null;
+  // Estado global para persistir entre cambios de página
+  similarityResults: SimilaritySearchResponse | null;
+  setSimilarityResults: React.Dispatch<React.SetStateAction<SimilaritySearchResponse | null>>;
+  similarityConfig: SimilarityConfig;
+  setSimilarityConfig: React.Dispatch<React.SetStateAction<SimilarityConfig>>;
+  samplesList: SampleInfo[];
+  setSamplesList: React.Dispatch<React.SetStateAction<SampleInfo[]>>;
 }
 
-export default function SimilarityPage({ appState, setAppState, pcaResults }: SimilarityPageProps) {
-  // Estado de configuración
-  const [sampleIndex, setSampleIndex] = useState<number>(0);
-  const [space, setSpace] = useState<'pca' | 'original'>('pca');
-  const [metric, setMetric] = useState<'euclidean' | 'cosine'>('euclidean');
-  const [k, setK] = useState(5);
+export default function SimilarityPage({
+  appState,
+  setAppState,
+  pcaResults,
+  similarityResults,
+  setSimilarityResults,
+  similarityConfig,
+  setSimilarityConfig,
+  samplesList,
+  setSamplesList
+}: SimilarityPageProps) {
+  // Desestructurar la configuración global
+  const { sampleIndex, space, metric, k } = similarityConfig;
 
-  // Estado de resultados
+  // Funciones para actualizar la configuración
+  const setSampleIndex = (value: number) =>
+    setSimilarityConfig(prev => ({ ...prev, sampleIndex: value }));
+  const setSpace = (value: 'pca' | 'original') =>
+    setSimilarityConfig(prev => ({ ...prev, space: value }));
+  const setMetric = (value: 'euclidean' | 'cosine') =>
+    setSimilarityConfig(prev => ({ ...prev, metric: value }));
+  const setK = (value: number) =>
+    setSimilarityConfig(prev => ({ ...prev, k: value }));
+
+  // Estado local solo para UI (loading, error)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchResult, setSearchResult] = useState<SimilaritySearchResponse | null>(null);
-  const [samplesList, setSamplesList] = useState<SampleInfo[]>([]);
+
+  // Usar el resultado global en lugar de local
+  const searchResult = similarityResults;
 
   // Cargar lista de muestras
   useEffect(() => {
@@ -55,7 +88,8 @@ export default function SimilarityPage({ appState, setAppState, pcaResults }: Si
         k
       });
 
-      setSearchResult(result);
+      // Usar el setter global para que persista entre cambios de página
+      setSimilarityResults(result);
 
       // Actualizar estado global para el modo enseñanza
       setAppState(prev => ({ ...prev, similaritySearched: true }));

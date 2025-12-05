@@ -485,11 +485,13 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
     }
 
     // Analizar distribución de tamaños
-    const sizes = estadisticas_clusters.map(s => s.tamano);
-    const maxSize = Math.max(...sizes);
-    const minSize = Math.min(...sizes);
-    if (maxSize / minSize > 3) {
-      interpretation += ` Nota: los clústeres tienen tamaños muy desiguales (${minSize} a ${maxSize} muestras).`;
+    if (estadisticas_clusters && estadisticas_clusters.length > 0) {
+      const sizes = estadisticas_clusters.map(s => s.tamano);
+      const maxSize = Math.max(...sizes);
+      const minSize = Math.min(...sizes);
+      if (minSize > 0 && maxSize / minSize > 3) {
+        interpretation += ` Nota: los clústeres tienen tamaños muy desiguales (${minSize} a ${maxSize} muestras).`;
+      }
     }
 
     return interpretation;
@@ -897,7 +899,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
                     {clusteringResults.n_clusters}
                   </p>
                 </div>
-                {clusteringResults.silhouette_score !== null && (
+                {clusteringResults.silhouette_score != null && (
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-secondary-500">Silhouette Score</p>
                     <p className="text-xl font-semibold text-secondary-800">
@@ -905,7 +907,7 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
                     </p>
                   </div>
                 )}
-                {clusteringResults.inercia !== null && (
+                {clusteringResults.inercia != null && (
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-secondary-500">Inercia</p>
                     <p className="text-xl font-semibold text-secondary-800">
@@ -916,26 +918,28 @@ export default function ResultsPanel({ appState, pcaResults, clusteringResults }
               </div>
 
               {/* Tabla de estadísticas por clúster */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 px-3 text-secondary-600">Clúster</th>
-                      <th className="text-right py-2 px-3 text-secondary-600">Tamaño</th>
-                      <th className="text-right py-2 px-3 text-secondary-600">%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clusteringResults.estadisticas_clusters.map((stat, i) => (
-                      <tr key={i} className="border-b border-gray-100">
-                        <td className="py-2 px-3 font-medium">Clúster {stat.cluster_id}</td>
-                        <td className="py-2 px-3 text-right">{stat.tamano}</td>
-                        <td className="py-2 px-3 text-right">{stat.porcentaje.toFixed(1)}%</td>
+              {clusteringResults.estadisticas_clusters && clusteringResults.estadisticas_clusters.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 px-3 text-secondary-600">Clúster</th>
+                        <th className="text-right py-2 px-3 text-secondary-600">Tamaño</th>
+                        <th className="text-right py-2 px-3 text-secondary-600">%</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {clusteringResults.estadisticas_clusters.map((stat, i) => (
+                        <tr key={i} className="border-b border-gray-100">
+                          <td className="py-2 px-3 font-medium">Clúster {stat.cluster_id}</td>
+                          <td className="py-2 px-3 text-right">{stat.tamano}</td>
+                          <td className="py-2 px-3 text-right">{stat.porcentaje?.toFixed(1) ?? 0}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Dendrograma (solo para jerárquico) */}
